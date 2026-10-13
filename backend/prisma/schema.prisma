@@ -1,0 +1,182 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RegistrationMethod {
+  EMAIL_PASSWORD
+  PHONE
+  GOOGLE
+  APPLE
+}
+
+enum AccountStatus {
+  ONBOARDING
+  ACTIVE
+}
+
+enum Role {
+  MEMBER
+  OPERATOR
+  ADMIN
+}
+
+enum PendingStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PhoneChallengeStatus {
+  ISSUING
+  PENDING
+  CHECKING
+  APPROVED
+  CONSUMED
+  CANCELLED
+  EXPIRED
+  INDETERMINATE
+}
+
+enum EmailAuthorizationStatus {
+  ACTIVE
+  CONSUMED
+  SUPERSEDED
+  EXPIRED
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
+  INDETERMINATE
+}
+
+enum RegistrationOperation {
+  BEGIN
+  PHONE_SEND
+  PHONE_CHECK
+  EMAIL_SEND
+  EMAIL_CHECK
+}
+
+// Only verified canonical contacts belong to the member identity. Unverified
+// destinations remain in purpose-limited pending contexts, never reserving a user.
+model User {
+  id              String                @id @default(uuid()) @db.Uuid
+  createdAt       DateTime              @default(now()) @db.Timestamptz(3)
+  sessions        Session[]
+  status          AccountStatus         @default(ONBOARDING)
+  role            Role                  @default(MEMBER)
+  displayName     String?               @db.VarChar(100)
+  primaryMethod   RegistrationMethod?
+  phone           String?               @unique @db.VarChar(16)
+  phoneVerifiedAt DateTime?             @db.Timestamptz(3)
+  email           String?               @unique @db.VarChar(254)
+  emailVerifiedAt DateTime?             @db.Timestamptz(3)
+  completedAt     DateTime?             @db.Timestamptz(3)
+  identities      UserIdentity[]
+  registrations   PendingRegistration[]
+}
+
+model UserIdentity {
+  id        String             @id @default(uuid()) @db.Uuid
+  userId    String             @db.Uuid
+  method    RegistrationMethod
+  subject   String             @db.VarChar(255)
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([method, subject])
+  @@unique([userId, method])
+}
+
+model PendingRegistration {
+  id                  String                           @id @default(uuid()) @db.Uuid
+  capabilityHash      String?                          @unique @db.Char(64)
+  status              PendingStatus                    @default(ACTIVE)
+  primaryMethod       RegistrationMethod
+  primarySubject      String                           @db.VarChar(255)
+  displayName         String?                          @db.VarChar(100)
+  phone               String?                          @db.VarChar(16)
+  phoneVerifiedAt     DateTime?                        @db.Timestamptz(3)
+  email               String?                          @db.VarChar(254)
+  emailVerifiedAt     DateTime?                        @db.Timestamptz(3)
+  emailGeneration     Int                              @default(0)
+  emailLastIssuedAt   DateTime?                        @db.Timestamptz(3)
+  createdAt           DateTime                         @default(now()) @db.Timestamptz(3)
+  expiresAt           DateTime                         @db.Timestamptz(3)
+  completedAt         DateTime?                        @db.Timestamptz(3)
+  completedUserId     String?                          @db.Uuid
+  completedUser       User?                            @relation(fields: [completedUserId], references: [id], onDelete: Restrict)
+  phoneChallenges     PhoneChallenge[]
+  emailAuthorizations RegistrationEmailAuthorization[]
+
+  @@index([expiresAt])
+}
+
+model PhoneChallenge {
+  id                 String               @id @default(uuid()) @db.Uuid
+  pendingId          String               @db.Uuid
+  // Fixed registration purpose: sign-in/link/recovery are later tasks.
+  purpose            String               @default("registration_phone") @db.VarChar(32)
+  phone              String               @db.VarChar(16)
+  providerServiceSid String               @db.VarChar(34)
+  providerSid        String?              @unique @db.VarChar(34)
+  status             PhoneChallengeStatus @default(ISSUING)
+  failedChecks       Int                  @default(0)
+  createdAt          DateTime             @default(now()) @db.Timestamptz(3)
+  lastRequestedAt    DateTime             @db.Timestamptz(3)
+  expiresAt          DateTime             @db.Timestamptz(3)
+  approvedAt         DateTime?            @db.Timestamptz(3)
+  pending            PendingRegistration  @relation(fields: [pendingId], references: [id], onDelete: Cascade)
+
+  @@index([pendingId])
+  @@index([expiresAt])
+}
+
+model RegistrationEmailAuthorization {
+  id             String                   @id @default(uuid()) @db.Uuid
+  pendingId      String                   @db.Uuid
+  purpose        String                   @default("registration_email") @db.VarChar(32)
+  email          String                   @db.VarChar(254)
+  tokenHash      String?                  @unique @db.Char(64)
+  generation     Int
+  status         EmailAuthorizationStatus @default(ACTIVE)
+  deliveryStatus DeliveryStatus           @default(QUEUED)
+  createdAt      DateTime                 @default(now()) @db.Timestamptz(3)
+  expiresAt      DateTime                 @db.Timestamptz(3)
+  consumedAt     DateTime?                @db.Timestamptz(3)
+  pending        PendingRegistration      @relation(fields: [pendingId], references: [id], onDelete: Cascade)
+
+  @@unique([pendingId, generation])
+  @@index([expiresAt])
+}
+
+model RegistrationRateEvent {
+  id         String                @id @default(uuid()) @db.Uuid
+  keyId      String                @db.VarChar(32)
+  bucketHash String                @db.Char(64)
+  operation  RegistrationOperation
+  createdAt  DateTime              @default(now()) @db.Timestamptz(3)
+
+  @@index([keyId, bucketHash, operation, createdAt])
+  @@index([createdAt])
+}
+
+// Explicit expiry input; no duration, inactivity, cap or refresh policy default.
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+}

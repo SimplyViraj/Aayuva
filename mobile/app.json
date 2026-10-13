@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "AAyuva",
+    "slug": "aayuva",
+    "version": "0.1.0",
+    "orientation": "default",
+    "scheme": "aayuva",
+    "platforms": [
+      "android",
+      "ios"
+    ],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-status-bar"
+    ],
+    "userInterfaceStyle": "light"
+  }
+}
