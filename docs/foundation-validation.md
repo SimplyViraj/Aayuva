@@ -1,5 +1,7 @@
 # DEL-001 implementation and validation — 2026-10-13
 
+Historical accepted IT-003 candidate. Descriptions and results below reflect the foundation snapshot; subsequent DEL-002 implementation/current regression evidence is in [account-validation.md](account-validation.md).
+
 DEV-001–DEV-009 are implemented within the foundation scope. IT-001 and IT-002 foundation integration cases pass. The accountable owner accepted IT-003 with the listed release-remediation gates retained on 2026-10-13. DEL-001 is closed; DEV-010 prerequisite work is active. Account implementation has not begun. This is not completed registration, authentication, account association, recovery or production authorization.
 
 The owner approved all tasks and the presented technical revisions. [Approved policies](approved-policies.md) capture subsequent age, email, contact, session and OTP directions. [Technical baseline](technical-baseline.md) and [persistence review](persistence-foundation.md) explain the reviewed choices. Source constitution/specification/plan files remain unchanged.
@@ -76,7 +78,7 @@ Reachability assessments above are based on repository imports, installed packag
 
 **IT-003 is closed:** the accountable owner selected “Accept foundation exit; retain listed release-remediation gates” after reviewing this candidate. The supplied checks/reviews and attributable acceptance satisfy the foundation exit in [tasks.md Section 4.1](../tasks.md). Release findings remain assigned to the later candidate/security review.
 
-**DEV-010 is active:** the owner removed the age restriction and approved email expiry from issuance, immediate resend supersession, and latest-only/single-use acceptance. Five-minute email expiry, 30-second resend, verified replacement contacts and approved OTP limits remain. [Account readiness proposal R2](account-readiness.md) consolidates remaining provider OTP expiry/recovery, registration abuse/privacy and technical reviews. Actual Twilio/Resend credentials/service/domain/sender configuration belong to the corresponding activation/integration gates and must be supplied securely, never in chat/source.
+**DEV-010 implementation entry is closed:** the owner removed the age restriction, approved the registration-email contract and explicitly accepted R2-A/B/C in [account readiness](account-readiness.md). DEL-002 implementation and current regression results are recorded in [account-validation.md](account-validation.md) and [account-files.md](account-files.md); historical foundation descriptions/counts above are the accepted IT-003 snapshot. Actual Twilio/Resend credentials/service/domain/sender configuration remain deferred by the owner, and real platform evidence/IT-007 exit remain open.
 
 Later tasks retain method/provider/signing/device matrices, remaining session/key/refresh contracts, Argon2id deployment calibration, privileged action/provisioning rules and measurement requirements. They are enumerated in execution-register.md and approved-policies.md. No later story is implemented to bypass the current phase exit.
 

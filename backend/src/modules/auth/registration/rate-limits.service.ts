@@ -40,4 +40,9 @@ export class RegistrationRateLimits {
   }
   emailCheck(pendingId: string, ip: string): Bucket[] { return [{ scope: 'pending', value: pendingId, operation: 'EMAIL_CHECK', maximum: 10, windowSeconds: 60 }, { scope: 'ip', value: ip, operation: 'EMAIL_CHECK', maximum: 20, windowSeconds: 60 }]; }
   begin(ip: string): Bucket[] { return [{ scope: 'ip', value: ip, operation: 'BEGIN', maximum: 5, windowSeconds: 3600 }]; }
+  socialStart(ip: string): Bucket[] { return [
+    { scope: 'ip', value: ip, operation: 'SOCIAL_START', maximum: 10, windowSeconds: 60 },
+    { scope: 'ip', value: ip, operation: 'SOCIAL_START', maximum: 30, windowSeconds: 3600 },
+  ]; }
+  socialComplete(ip: string): Bucket[] { return [{ scope: 'ip', value: ip, operation: 'SOCIAL_COMPLETE', maximum: 20, windowSeconds: 60 }]; }
 }

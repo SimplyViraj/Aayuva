@@ -8,6 +8,8 @@
   },
   "scripts": {
     "start": "expo start",
+    "manual:start": "expo start manual-app --lan --port 8083 --clear",
+    "manual:build": "cd manual-app && expo export --platform ios --output-dir ../dist/manual",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
@@ -18,7 +20,9 @@
   },
   "dependencies": {
     "expo": "57.0.28",
+    "expo-apple-authentication": "57.0.2",
     "expo-constants": "~57.0.21",
+    "expo-dev-client": "57.0.20",
     "expo-linking": "~57.0.12",
     "expo-router": "~57.0.26",
     "expo-secure-store": "~57.0.4",
@@ -26,6 +30,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-nitro-google-signin": "2.3.0",
+    "react-native-nitro-modules": "0.37.1",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",

@@ -7,7 +7,7 @@
 | Feature name | Authentication, identity continuity, sessions, recovery and protected access |
 | Feature identifier | Unassigned in the source documents. `DEV-*` and `IT-*` are local task identifiers, not an approved feature identifier or branch. |
 | Creation date | 2026-10-13, Asia/Calcutta |
-| Status | All tasks authorized for execution on 2026-10-13. DEV-001–DEV-009 implemented within foundation scope; IT-001/IT-002 pass. Owner accepted IT-003 with release-remediation gates retained. DEV-010 is in progress; later implementation remains dependency-gated. |
+| Status | All tasks authorized for execution on 2026-10-13. Foundation exit IT-003 accepted with release-remediation gates retained. DEV-010–DEV-016 implemented; DEV-017 code/automation implemented, native acceptance pending. IT-004 passes on isolated PostgreSQL; IT-005/IT-006 and exit IT-007 remain pending real provider/platform evidence. DEV-018 and later remain dependency-gated. |
 | Source plan | [plan.md](plan.md), especially Sections 3, 9 and 10 |
 | Related specification | [specifications.md](specifications.md), SRC-013; US-002–US-004 and US-017; bounded supporting portions of US-001 and US-016 |
 | Engineering authority | [constitution.md](constitution.md), version 1.0.0 |
@@ -164,28 +164,36 @@ Foundation execution evidence (2026-10-13): DEV-003 through DEV-009 are implemen
 - **Dependencies:** DEV-011; resolved DEC-003–DEC-004.
 - **Acceptance Criteria:** Service tests reference US-001/US-003 and applicable EC-004, EC-048, EC-051 cases. Concurrent lookup/create evidence is available for IT-004; unresolved assisted-resolution behavior is not implemented by inference.
 
-#### [ ] DEV-013 — Implement the approved Twilio verification adapter
+#### [x] DEV-013 — Implement the approved Twilio verification adapter
+
+- **Execution evidence (2026-10-14):** Fixed-host Twilio Verify adapter, bounded provider responses/deadline, context/service/phone/reference binding, shared abuse reservations, indeterminate-state recovery and conditional verification transitions implemented under EXC-001. Substitute adapter/fault tests and actual PostgreSQL transition tests pass; [account validation](docs/account-validation.md) distinguishes these from deferred live Twilio IT-005 evidence. No OTP is generated, persisted, hashed, returned or logged by the application. Actual service/secrets and activation remain gated.
 
 - **Service / Module:** Backend auth providers and verification services.
 - **Objective:** Implement the provider adapter, bound verification operations and application abuse-control integration specified by plan Sections 6.3, 7.4 and 8.1. Source: FR-005, FR-047; SEC-005, SEC-007; INT-003.
 - **Dependencies:** DEV-010–DEV-012; CLR-024 resolved; DEC-006–DEC-007 configuration and recovery decisions recorded.
 - **Acceptance Criteria:** Adapter and local-transition tests cover applicable VAL-004 and VAL-018 cases. Reviewed provider configuration and test evidence distinguish adapter-substitute results from isolated Twilio results. Applicable constitutional compliance is demonstrable against the recorded CLR-024 resolution.
 
-#### [ ] DEV-014 — Implement registration-email verification
+#### [x] DEV-014 — Implement registration-email verification
+
+- **Execution evidence (2026-10-14):** Resend adapter and purpose-bound 256-bit registration authorizations implement five-minute issue-time expiry, 30-second resend wait, immediate supersession, latest-only single use and shared budgets. Adapter substitutes and PostgreSQL concurrency/outage tests pass. Live sender/domain/delivery evidence is deferred by the owner; password recovery is not implemented. See [account validation](docs/account-validation.md).
 
 - **Service / Module:** Backend auth/email providers and authorization persistence.
 - **Objective:** Implement the registration-email lifecycle and delivery integration described in plan Section 6.1 using the reviewed policy and vendor selection. Source: FR-048–FR-049; BR-009; CLR-002 and CLR-004.
 - **Dependencies:** DEV-010–DEV-012; DEC-012 registration-email decisions and provider readiness.
 - **Acceptance Criteria:** Unit and adapter tests cover the approved registration-email lifecycle, including purpose and concurrency checks selected for IT-005. The implementation and its configuration are reviewed separately from password-recovery authorization.
 
-#### [ ] DEV-015 — Implement account-establishment orchestration
+#### [x] DEV-015 — Implement account-establishment orchestration
+
+- **Execution evidence (2026-10-14):** Trusted primary-evidence boundary, minimal profile, pending capability/status/cancellation and atomic idempotent MEMBER completion implemented and API-tested. Missing provider name starts onboarding; completion requires the approved name and verified contacts. Completion issues no normal-access session. Primary authentication substitutes exist only in test modules; production verifier remains inactive until DEL-003. See [account validation](docs/account-validation.md).
 
 - **Service / Module:** Backend auth/identity application services and pending-context enforcement.
 - **Objective:** Connect identity, verification and the approved minimal profile operations according to plan Section 6.1. Source: US-001 supporting slice; FR-001–FR-002 within scope, FR-043, FR-047–FR-052; BR-008–BR-011.
 - **Dependencies:** DEV-007, DEV-012–DEV-014.
 - **Acceptance Criteria:** Service-level evidence maps each included US-001 scenario to the approved field/verification decisions and VAL-001/VAL-016. The DEL-002 primary-authentication fixture boundary is documented for replacement in DEL-003.
 
-#### [ ] DEV-016 — Expose and document account-establishment operations
+#### [x] DEV-016 — Expose and document account-establishment operations
+
+- **Execution evidence (2026-10-14):** Ten inventoried registration operations across eight paths have allowlisted DTOs, safe responses, no-store headers and separate primary/onboarding OpenAPI security contexts. Isolated Nest API tests pass validation, access, status minimization, cancellation and concurrent completion cases. The prepared feature module is intentionally not imported by AppModule until real caller/provider activation gates are met; no runtime fixture route exists. See [account validation](docs/account-validation.md).
 
 - **Service / Module:** Backend auth DTOs/controllers; Swagger/OpenAPI.
 - **Objective:** Connect the DEL-002 services through the corresponding operation groups in plan Section 7.1, using shared validation, access checks and safe responses.
@@ -193,6 +201,8 @@ Foundation execution evidence (2026-10-13): DEV-003 through DEV-009 are implemen
 - **Acceptance Criteria:** Request/response and error behavior is covered by API tests; generated OpenAPI matches the implemented operations and security context. Review links FR-043–FR-044, SEC-001–SEC-003 and VAL-001/VAL-012/VAL-016 to their tests.
 
 #### [ ] DEV-017 — Integrate registration and verification interactions
+
+- **Execution evidence (2026-10-14):** Register, phone and email routes, distinct native pending-capability storage, backend-confirmed restoration/navigation, accessible interaction states, server-derived resend waits and transient proof handling implemented. RNTL/transport tests and Android/iOS Hermes exports are recorded in [account validation](docs/account-validation.md). This checkbox remains open because compatible Expo Go and actual Android/iOS interaction evidence have not been captured. Real primary-method integration remains DEL-003; no runtime substitute is added.
 
 - **Service / Module:** Mobile register/verify-phone/verify-email routes; auth services, schemas, hooks and components.
 - **Objective:** Integrate DEV-016 into the approved account-establishment interactions and launch routing. Source: plan Sections 7.2–7.3; US-001 bounded scenarios; FR-044; NFR-001, NFR-006–NFR-007.
@@ -442,6 +452,16 @@ For each result, record candidate revision, task/requirement/VAL IDs, approved c
 
 ### 4.2 DEL-002 — Account establishment integration and exit
 
+**Execution disposition (2026-10-14):** IT-004 passes on the guarded PostgreSQL/API fixture. IT-005 substitute/fault tests and IT-006 RNTL/transport/bundle checks pass, but actual provider and Expo Go/device evidence remain pending. The owner deferred secure provider configuration. IT-007 is open; DEV-018 may not start. Reproducible results, fixture boundaries and remaining gates are in [account validation](docs/account-validation.md).
+
+**Provider preflight update (2026-10-14):** Newly supplied private backend settings pass local contracts. Read-only Twilio account/service binding passes; Resend domain lookup returns HTTP 401, and owned test destinations are absent from the saved file. No test messages were sent. IT-005 and the downstream exit remain open; see [preflight evidence](docs/account-validation.md#provider-configuration-preflight--2026-10-14).
+
+**Later readiness update (2026-10-14):** Owned destinations are now saved and valid. Resend diagnosis is `restricted_api_key` (send-only key cannot list domains), superseding the earlier key-replacement instruction. The guarded local preflight passes. An isolated hidden-input provider rehearsal and four passing safety tests are prepared; actual delivery/check and remaining IT-005 matrix evidence are still open. See [rehearsal evidence](docs/account-validation.md#isolated-provider-rehearsal--it-005-preparation).
+
+**App-testing preparation (2026-10-14):** At the owner's request, prepared a separate Expo Go launcher and paired Nest test API for iPhone testing. It reuses DEL-002 screens/services, restricts delivery to owned destinations and uses only the guarded fixture. Automated access/destination/completion and mobile pairing/proof cases pass; ordinary bundles and the separate iOS export compile. Actual device/provider observations and IT-007 acceptance remain open. See [manual app guide](docs/manual-app-testing.md).
+
+**Email troubleshooting (2026-10-15), DEV-014 / IT-005:** The owner's unavailable result led to diagnosis of an unsupported public-mailbox sender and stopped Docker fixture. Restored the existing database and corrected only the private local sender to Resend's test address; no-send preflight passes. Resend-account inbox matching and an API restart/app retry are still required. No successful delivery or IT-007 exit is inferred. See [troubleshooting evidence](docs/account-validation.md#email-troubleshooting--2026-10-15).
+
 | Task ID | Title | Service / Module | Objective | Dependencies | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
 | IT-004 | Validate account and input boundaries | Identity/auth services, APIs and PostgreSQL | Execute VAL-001/VAL-016 against US-001's bounded scenarios and EC-001–EC-004, EC-047–EC-048, EC-051; include approved boundary data and concurrent identity operations. | DEV-011–DEV-012, DEV-015–DEV-016, DEV-009 | API and database evidence passes the referenced cases against approved field/contact decisions; fixture identity scope is documented. |
@@ -588,3 +608,13 @@ For any defect fix or shared-module change, rerun the affected source scenarios 
 - SC-001, SC-010, applicable SC-011 and SC-012–SC-013 have evidence assessed using their source status and approved targets; any remaining acceptance dependency is visible and prevents an unsupported readiness claim.
 - The verification handoff names the responsible reviewer and explicitly identifies the bounded US-001/US-016 scope, conditional dispositions and residual limitations.
 - Readiness applies to this authentication and authorization slice. Production deployment, broader product acceptance, unresolved historical import work and commercial/legal/privacy/operational approvals retain their separate gates under plan Section 11 and the specification's clarification register.
+
+**Email follow-up (2026-10-15), DEV-014 / DEV-017 / IT-005 / IT-006:** Account inbox match confirmed. Observed 429 followed the failed email send inside its approved 30-second cooldown. Fixed mobile cooldown recovery after failed delivery and added bounded, fixed-category diagnostics only to the separate manual server. No automatic delivery retry, rate reset or production activation. Actual provider diagnosis/delivery/check and IT-007 exit remain open; see [follow-up validation](docs/account-validation.md#follow-up-email-failure--dev-014--dev-017--it-005--it-006-2026-10-15).
+
+**Registration connection follow-up (2026-10-15), DEV-017 / IT-006:** Owner reports no backend log when registration start fails. Host API and no-send guarded-database preflight pass; phone-to-API reachability remains unverified. Manual launcher now distinguishes missing HTTP response from backend 503 and supports changing the connection without replay. No production flow, firewall rule or database configuration changed.
+
+**Confirmed email operation (2026-10-15), DEV-014 / IT-005:** The owner identifies Send verification email as the 05:15:56 UTC 503 trigger. Guarded metadata confirms successful registration creation followed by indeterminate email delivery; host/manual entry and preflight pass. Provider classification remains pending the separate manual diagnostic. No source code or provider configuration changed during this follow-up.
+
+**Provider restriction identified (2026-10-15), DEV-014 / IT-005:** Owner diagnostic reports Resend HTTP 403 / test_recipient_restricted. Align the private owned test destination with the inbox permitted by the account/team owning the sending key, or use a key from the matching intended account. No source/configuration change or provider message was performed by the agent. Successful delivery/proof and downstream acceptance remain pending.
+
+**Google/Apple selected next (2026-10-15):** Owner reports the email test works and requests Google/Apple with credentials later. DEV-018 readiness and selected DEV-021/DEV-022 preparation are now authorized; minimum shared method integration is scoped in [technical review R3](docs/social-sign-in-readiness.md). New libraries/flow/session choices await the previously requested technical review before runtime implementation. DEV-019/DEV-020 and unrelated later work are not included. IT-005/IT-006/IT-007 remain open; owner-reported success does not close their full matrices.

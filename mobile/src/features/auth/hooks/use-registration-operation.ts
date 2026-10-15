@@ -6,18 +6,18 @@ export function useRegistrationOperation(identity: unknown) {
   const current = useRef(identity); const generation = useRef(0); const busy = useRef(false); const alive = useRef(true);
   if (current.current !== identity) { current.current = identity; generation.current++; busy.current = false; }
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; }; }, []);
-  async function run<T>(action: () => Promise<T>, success: string): Promise<T | undefined> {
-    if (busy.current) return undefined;
+  async function run<T>(action: () => Promise<T>, success: string): Promise<{ ok: true; value: T } | { ok: false }> {
+    if (busy.current) return { ok: false };
     busy.current = true; const version = generation.current;
     setFeedback({ identity, kind: 'loading', message: 'Please wait…' });
     try {
       const result = await action();
-      if (!alive.current || version !== generation.current) return undefined;
-      setFeedback({ identity, kind: 'success', message: success }); return result;
+      if (!alive.current || version !== generation.current) return { ok: false };
+      setFeedback({ identity, kind: 'success', message: success }); return { ok: true, value: result };
     } catch (error) {
       if (alive.current && version === generation.current) setFeedback({ identity, kind: 'error', message: error instanceof ApiError ? error.message : 'Account setup could not be completed. Please refresh its status.' });
-      return undefined;
+      return { ok: false };
     } finally { if (version === generation.current) busy.current = false; }
   }
-  return { run, feedback: feedback?.identity === identity ? feedback : undefined, busy: feedback?.identity === identity && feedback.kind === 'loading' };
+  return { run, feedback: feedback?.identity === identity ? feedback : undefined, busy: feedback?.identity === identity && feedback?.kind === 'loading' };
 }

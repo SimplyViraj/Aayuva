@@ -36,7 +36,7 @@ export function RegistrationProvider({ children, storage = pendingStorage, creat
     } catch (error) {
       if (version !== revision.current || !mounted.current) return;
       if (error instanceof ApiError && error.code === 'unauthenticated') {
-        try { await storage.clear(); } catch { setView({ phase: 'unavailable', status: null, api: null }); return; }
+        try { await storage.clear(); } catch { if (version === revision.current && mounted.current) setView({ phase: 'unavailable', status: null, api: null }); return; }
         if (version === revision.current && mounted.current) setView({ phase: 'none', status: null, api: null });
       } else setView({ phase: 'unavailable', status: null, api: null });
     }
@@ -46,14 +46,14 @@ export function RegistrationProvider({ children, storage = pendingStorage, creat
     return () => { mounted.current = false; ++revision.current; };
   }, [restore]);
   const clear = useCallback(async (): Promise<void> => {
-    ++revision.current; setView({ phase: 'loading', status: null, api: null });
-    try { await storage.clear(); if (mounted.current) setView({ phase: 'none', status: null, api: null }); }
-    catch { if (mounted.current) setView({ phase: 'unavailable', status: null, api: null }); throw new Error('Account setup could not be cleared.'); }
+    const version = ++revision.current; setView({ phase: 'loading', status: null, api: null });
+    try { await storage.clear(); if (mounted.current && version === revision.current) setView({ phase: 'none', status: null, api: null }); }
+    catch { if (mounted.current && version === revision.current) setView({ phase: 'unavailable', status: null, api: null }); throw new Error('Account setup could not be cleared.'); }
   }, [storage]);
   const begin = useCallback(async (issued: PendingCredential): Promise<void> => {
-    ++revision.current; setView({ phase: 'loading', status: null, api: null });
-    try { await storage.write(pendingCredential(issued)); await restore(); }
-    catch { if (mounted.current) setView({ phase: 'unavailable', status: null, api: null }); throw new Error('Account setup could not be stored.'); }
+    const version = ++revision.current; setView({ phase: 'loading', status: null, api: null });
+    try { await storage.write(pendingCredential(issued)); if (mounted.current && version === revision.current) await restore(); }
+    catch { if (mounted.current && version === revision.current) setView({ phase: 'unavailable', status: null, api: null }); throw new Error('Account setup could not be stored.'); }
   }, [storage, restore]);
   return <Context.Provider value={{ ...view, refresh: restore, begin, clear }}>{children}</Context.Provider>;
 }

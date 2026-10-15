@@ -12,15 +12,31 @@ export class PhoneVerificationService {
 
   async request(token: string, input: string, ip: string): Promise<{ expiresAt: Date; resendAt: Date }> {
     const phone = canonicalPhone(input);
+    const reservedId = await this.database.$transaction(async (tx) => {
+      const { pending } = await this.contexts.authorize(tx, token);
+      if (pending.primaryMethod === 'PHONE' && canonicalPhone(pending.primarySubject) !== phone) throw new ConflictException();
+      // Persist budgets before contact lookup. Refused collisions must not
+      // become an unmetered account-enumeration path through transaction rollback.
+      await this.limits.reserve(tx, this.limits.phoneSend(phone, pending.id, ip));
+      return pending.id;
+    });
     const challenge = await this.database.$transaction(async (tx) => {
       const { pending, now } = await this.contexts.authorize(tx, token);
+      if (pending.id !== reservedId) throw new UnauthorizedException();
       if (pending.primaryMethod === 'PHONE' && canonicalPhone(pending.primarySubject) !== phone) throw new ConflictException();
       if (pending.phoneVerifiedAt) throw new ConflictException();
       if (await tx.user.findUnique({ where: { phone }, select: { id: true } })) throw new ConflictException();
+      // Terminal/expired contexts cannot reconcile through their capability.
+      // Release only after both local expiry and the approved provider validity
+      // plus outbound deadline since the last send; never adopt the old SID.
+      await tx.phoneChallenge.updateMany({ where: {
+        phone, providerServiceSid: this.provider.serviceSid, status: { in: [...ACTIVE] },
+        expiresAt: { lte: now }, lastRequestedAt: { lte: new Date(now.getTime() - 610_000) },
+        pending: { OR: [{ status: 'CANCELLED' }, { expiresAt: { lte: now } }] },
+      }, data: { status: 'EXPIRED' } });
       const current = await tx.phoneChallenge.findFirst({ where: { pendingId: pending.id, status: { in: [...ACTIVE] } } });
       if (current && (current.phone !== phone || current.providerServiceSid !== this.provider.serviceSid || current.status !== 'PENDING' || current.expiresAt <= now || current.failedChecks >= 5)) throw new ConflictException();
       if (current && now.getTime() < current.lastRequestedAt.getTime() + 60_000) throw new HttpException('Rate limit reached.', HttpStatus.TOO_MANY_REQUESTS);
-      await this.limits.reserve(tx, this.limits.phoneSend(phone, pending.id, ip));
       await tx.pendingRegistration.update({ where: { id: pending.id }, data: { phone, phoneVerifiedAt: null } });
       if (current) return tx.phoneChallenge.update({ where: { id: current.id }, data: { status: 'ISSUING', lastRequestedAt: now } });
       return tx.phoneChallenge.create({ data: { pendingId: pending.id, phone, providerServiceSid: this.provider.serviceSid, createdAt: now, lastRequestedAt: now, expiresAt: new Date(Math.min(now.getTime() + 600_000, pending.expiresAt.getTime())) } });

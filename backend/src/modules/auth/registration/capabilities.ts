@@ -1,7 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { UnauthorizedException } from '@nestjs/common';
 
-export type CapabilityPurpose = 'pending_registration' | 'registration_email';
+export type CapabilityPurpose = 'pending_registration' | 'registration_email' | 'social_flow';
+
+export function socialNonceHash(nonce: string): string {
+  if (typeof nonce !== 'string' || !/^[a-f0-9]{64}$/.test(nonce)) throw new UnauthorizedException();
+  return createHash('sha256').update('aayuva:social_nonce\0').update(nonce).digest('hex');
+}
 
 export function issueCapability(purpose: CapabilityPurpose): { token: string; hash: string } {
   const token = randomBytes(32).toString('base64url');

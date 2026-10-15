@@ -49,6 +49,10 @@ describe('account schema - DEV-011 / VAL-001, VAL-015, VAL-016, VAL-018', () => 
     await Promise.all(ids.map((id) => db.pendingRegistration.update({ where: { id }, data: { phone: '+919876543210', email: 'pending@example.test' } })));
     expect(await db.pendingRegistration.count({ where: { id: { in: ids } } })).toBe(2);
   });
+  it('does not impose an unapproved ten-digit restriction on valid Indian numbering classes', async () => {
+    const id = await createPending();
+    await expect(db.pendingRegistration.update({ where: { id }, data: { phone: '+9118001234567' } })).resolves.toMatchObject({ phone: '+9118001234567', phoneVerifiedAt: null });
+  });
   it('has only one verified contact claimant under concurrent creation', async () => {
     const ids = [randomUUID(), randomUUID()]; ids.forEach((id) => users.add(id));
     const phone = '+9198' + String(BigInt('0x' + hash().slice(0, 10)) % 100_000_000n).padStart(8, '0');

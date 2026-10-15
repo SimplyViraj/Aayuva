@@ -43,6 +43,6 @@ export function registrationSettings(config: ConfigService): Settings {
     { provide: EmailVerificationService, useFactory: (db: PrismaService, ctx: PendingContextService, limits: RegistrationRateLimits, provider: ResendRegistrationEmail): EmailVerificationService => new EmailVerificationService(db, ctx, limits, provider), inject: [PrismaService, PendingContextService, RegistrationRateLimits, ResendRegistrationEmail] },
     { provide: AccountRegistrationService, useFactory: (db: PrismaService, ctx: PendingContextService, identities: IdentityService, limits: RegistrationRateLimits): AccountRegistrationService => new AccountRegistrationService(db, ctx, identities, limits), inject: [PrismaService, PendingContextService, IdentityService, RegistrationRateLimits] },
     { provide: RegistrationMaintenance, useFactory: (db: PrismaService): RegistrationMaintenance => new RegistrationMaintenance(db), inject: [PrismaService] },
-  ], exports: [AccountRegistrationService, PhoneVerificationService, EmailVerificationService, RegistrationMaintenance],
+  ], exports: [REGISTRATION_SETTINGS, AccountRegistrationService, PhoneVerificationService, EmailVerificationService, RegistrationMaintenance],
 })
 export class RegistrationModule {}

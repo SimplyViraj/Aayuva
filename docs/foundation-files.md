@@ -1,6 +1,6 @@
 # Foundation deliverable inventory - 2026-10-13
 
-Initial workspace: constitution.md, specifications.md, plan.md and tasks.md. Only tasks.md was updated among those four source documents. Files below were created or modified for DEV-001 through DEV-009 and DEV-010 readiness documentation; no account or later story code was added.
+Historical IT-003 snapshot, retained as accepted foundation evidence. Initial workspace: constitution.md, specifications.md, plan.md and tasks.md. Only tasks.md was updated among those four source documents. Files below were created or modified for DEV-001 through DEV-009 and DEV-010 readiness documentation; no account or later story code existed at that snapshot. Subsequent DEL-002 changes intentionally supersede affected hashes. Use [account-files.md](account-files.md) for the current candidate; do not compare current account files against this historical foundation fingerprint.
 
 ## Created or modified files
 

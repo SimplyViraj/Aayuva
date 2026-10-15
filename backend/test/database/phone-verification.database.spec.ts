@@ -27,7 +27,7 @@ class FixtureVerify implements PhoneVerificationProvider {
 
 describe('bound verification - DEV-013 / VAL-004/VAL-018 substitute plus PostgreSQL', () => {
   let db: PrismaService; let keyId: string; let service: PhoneVerificationService; let provider: FixtureVerify;
-  const pendingIds = new Set<string>();
+  const pendingIds = new Set<string>(); const userIds = new Set<string>();
   const pending = async (): Promise<{ token: string; id: string }> => {
     const capability = issueCapability('pending_registration'); const id = randomUUID(); pendingIds.add(id); const now = new Date();
     await db.pendingRegistration.create({ data: { id, capabilityHash: capability.hash, primaryMethod: 'GOOGLE', primarySubject: id, createdAt: now, expiresAt: new Date(now.getTime() + 1_800_000) } });
@@ -43,7 +43,7 @@ describe('bound verification - DEV-013 / VAL-004/VAL-018 substitute plus Postgre
   });
   afterEach(async () => { await db.registrationRateEvent.deleteMany({ where: { keyId } }); });
   afterAll(async () => {
-    if (db) { await db.pendingRegistration.deleteMany({ where: { id: { in: [...pendingIds] } } }); await db.onModuleDestroy(); }
+    if (db) { await db.pendingRegistration.deleteMany({ where: { id: { in: [...pendingIds] } } }); await db.user.deleteMany({ where: { id: { in: [...userIds] } } }); await db.onModuleDestroy(); }
   });
   it('keeps delivery pending, commits trusted approval once and never creates a session', async () => {
     const context = await pending();
@@ -89,5 +89,35 @@ describe('bound verification - DEV-013 / VAL-004/VAL-018 substitute plus Postgre
     expect(rows).toHaveLength(3); // Phone hourly/cooldown policies share one event.
     expect(JSON.stringify(rows)).not.toContain('fixture-ip');
     expect(JSON.stringify(rows)).not.toContain('+919876543223');
+  });
+  it('counts refused contact collisions without dispatching SMS or leaking identities', async () => {
+    const context = await pending(); const id = randomUUID(); userIds.add(id);
+    await db.user.create({ data: { id, phone: '+919876543224', phoneVerifiedAt: new Date() } });
+    await expect(service.request(context.token, '+919876543224', 'fixture-ip')).rejects.toMatchObject({ status: 409 });
+    expect(provider.sends).toBe(0);
+    expect(await db.registrationRateEvent.count({ where: { keyId, operation: 'PHONE_SEND' } })).toBe(3);
+    await expect(service.request(context.token, '+919876543224', 'fixture-ip')).rejects.toMatchObject({ status: 429 });
+  });
+  it('releases an abandoned phone only after local and provider expiry without adopting its SID', async () => {
+    const abandoned = await pending(); const next = await pending(); const now = Date.now();
+    const oldSid = 'VE' + 'b'.repeat(32); const phone = '+919876543225';
+    await db.pendingRegistration.update({ where: { id: abandoned.id }, data: { status: 'CANCELLED', capabilityHash: null } });
+    const old = await db.phoneChallenge.create({ data: { pendingId: abandoned.id, phone,
+      providerServiceSid: provider.serviceSid, providerSid: oldSid, status: 'INDETERMINATE',
+      createdAt: new Date(now - 660_000), expiresAt: new Date(now - 60_000), lastRequestedAt: new Date(now - 120_000),
+    } });
+    await expect(service.request(next.token, phone, 'fixture-ip')).rejects.toMatchObject({ status: 409 });
+    expect(provider.sends).toBe(0);
+    expect((await db.phoneChallenge.findUniqueOrThrow({ where: { id: old.id } })).status).toBe('INDETERMINATE');
+    // Move only this fixture's timestamps through the approved recovery/cooldown
+    // boundaries; no production clock override or remote replay is involved.
+    await db.phoneChallenge.update({ where: { id: old.id }, data: { lastRequestedAt: new Date(now - 660_000) } });
+    await db.registrationRateEvent.updateMany({ where: { keyId }, data: { createdAt: new Date(now - 61_000) } });
+    await service.request(next.token, phone, 'fixture-ip');
+    expect(provider.sends).toBe(1);
+    expect((await db.phoneChallenge.findUniqueOrThrow({ where: { id: old.id } })).status).toBe('EXPIRED');
+    const fresh = await db.phoneChallenge.findFirstOrThrow({ where: { pendingId: next.id } });
+    expect(fresh.providerSid).toBe(provider.sid); expect(fresh.providerSid).not.toBe(oldSid);
+    expect((await db.pendingRegistration.findUniqueOrThrow({ where: { id: next.id } })).phoneVerifiedAt).toBeNull();
   });
 });

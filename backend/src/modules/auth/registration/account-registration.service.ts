@@ -2,7 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { PrismaService } from '../../../database/prisma.service';
 import { IdentityService } from '../../identity/identity.service';
 import { canonicalEmail, canonicalSubject, displayName } from '../../identity/normalization';
-import type { RegistrationMethod } from '../../../generated/prisma/client';
+import type { Prisma, RegistrationMethod } from '../../../generated/prisma/client';
 import { PendingContextService } from './pending-context.service';
 import { RegistrationRateLimits } from './rate-limits.service';
 import { capabilityHash, issueCapability } from './capabilities';
@@ -12,6 +12,7 @@ export interface TrustedPrimaryIdentity { method: RegistrationMethod; subject: s
 export interface RegistrationStatus {
   stage: 'onboarding' | 'completed'; displayName: string | null; phone: string | null;
   email: string | null; phoneVerified: boolean; emailVerified: boolean; emailRequired: boolean; expiresAt: string;
+  phoneResendAt: string | null; emailResendAt: string | null;
 }
 
 @Injectable()
@@ -21,23 +22,31 @@ export class AccountRegistrationService {
 
   // Evidence comes only from a reviewed backend verifier/callback/guard. A client
   // DTO never supplies trusted method/subject/verification state or role.
-  async begin(evidence: TrustedPrimaryIdentity, profile: { displayName: string; email?: string }, ip: string): Promise<{ token: string; expiresAt: string }> {
+  async begin(evidence: TrustedPrimaryIdentity, profile: { displayName?: string; email?: string }, ip: string): Promise<{ token: string; expiresAt: string }> {
+    return this.database.$transaction((tx) => this.beginWithin(tx, evidence, profile, ip));
+  }
+
+  // Social flow consumption and pending issuance share one transaction; a
+  // failed/lost completion must never leave a reusable verified flow.
+  async beginWithin(tx: Prisma.TransactionClient, evidence: TrustedPrimaryIdentity, profile: { displayName?: string; email?: string }, ip: string): Promise<{ token: string; expiresAt: string }> {
     const subject = canonicalSubject(evidence.method, evidence.subject);
-    const name = displayName(profile.displayName || evidence.displayName || '');
-    const email = evidence.method === 'EMAIL_PASSWORD' ? canonicalEmail(profile.email ?? '')
+    let name: string | null = null;
+    if (profile.displayName !== undefined) name = displayName(profile.displayName);
+    else if (evidence.displayName?.trim() && Array.from(evidence.displayName.trim()).length <= 100 && !evidence.displayName.includes('\0')) name = displayName(evidence.displayName);
+    // Missing/unusable provider profile data begins onboarding; a valid name
+    // still remains mandatory in the final authoritative identity transaction.
+    const email = evidence.method === 'EMAIL_PASSWORD' ? canonicalEmail(profile.email ?? subject)
       : evidence.verifiedEmail ? canonicalEmail(evidence.verifiedEmail) : null;
     if (evidence.method === 'EMAIL_PASSWORD' && subject !== email) throw new ConflictException();
-    if (await this.identities.resolveVerifiedMethod(evidence.method, subject)) throw new ConflictException();
+    if (await tx.userIdentity.findUnique({ where: { method_subject: { method: evidence.method, subject } }, select: { id: true } })) throw new ConflictException();
     const capability = issueCapability('pending_registration');
-    const pending = await this.database.$transaction(async (tx) => {
-      await this.limits.reserve(tx, this.limits.begin(ip));
-      const now = await registrationTime(tx);
-      return tx.pendingRegistration.create({ data: {
-        capabilityHash: capability.hash, primaryMethod: evidence.method, primarySubject: subject,
-        displayName: name, email, emailVerifiedAt: evidence.verifiedEmail && evidence.method !== 'EMAIL_PASSWORD' ? now : null,
-        createdAt: now, expiresAt: new Date(now.getTime() + 1_800_000),
-      }, select: { expiresAt: true } });
-    });
+    await this.limits.reserve(tx, this.limits.begin(ip));
+    const now = await registrationTime(tx);
+    const pending = await tx.pendingRegistration.create({ data: {
+      capabilityHash: capability.hash, primaryMethod: evidence.method, primarySubject: subject,
+      displayName: name, email, emailVerifiedAt: evidence.verifiedEmail && evidence.method !== 'EMAIL_PASSWORD' ? now : null,
+      createdAt: now, expiresAt: new Date(now.getTime() + 1_800_000),
+    }, select: { expiresAt: true } });
     return { token: capability.token, expiresAt: pending.expiresAt.toISOString() };
   }
 
@@ -55,12 +64,15 @@ export class AccountRegistrationService {
       const now = await registrationTime(tx);
       const pending = await tx.pendingRegistration.findUnique({ where: { capabilityHash: hash }, select: {
         status: true, displayName: true, phone: true, phoneVerifiedAt: true,
-        email: true, emailVerifiedAt: true, primaryMethod: true, expiresAt: true,
+        email: true, emailVerifiedAt: true, primaryMethod: true, expiresAt: true, emailLastIssuedAt: true,
+        phoneChallenges: { where: { status: { in: ['ISSUING', 'PENDING', 'CHECKING', 'APPROVED', 'INDETERMINATE'] } }, orderBy: { createdAt: 'desc' }, take: 1, select: { lastRequestedAt: true } },
       } });
       if (!pending || pending.status === 'CANCELLED' || pending.expiresAt <= now) throw new UnauthorizedException();
       return { stage: pending.status === 'COMPLETED' ? 'completed' : 'onboarding', displayName: pending.displayName,
         phone: pending.phone, email: pending.email, phoneVerified: !!pending.phoneVerifiedAt,
-        emailVerified: !!pending.emailVerifiedAt, emailRequired: pending.primaryMethod === 'EMAIL_PASSWORD', expiresAt: pending.expiresAt.toISOString() };
+        emailVerified: !!pending.emailVerifiedAt, emailRequired: pending.primaryMethod === 'EMAIL_PASSWORD', expiresAt: pending.expiresAt.toISOString(),
+        phoneResendAt: pending.phoneChallenges[0] ? new Date(pending.phoneChallenges[0].lastRequestedAt.getTime() + 60_000).toISOString() : null,
+        emailResendAt: pending.emailLastIssuedAt ? new Date(pending.emailLastIssuedAt.getTime() + 30_000).toISOString() : null };
     });
   }
 

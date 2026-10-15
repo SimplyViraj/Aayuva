@@ -6,8 +6,16 @@ export interface BackendEnvironment {
   API_DOCS_ENABLED: boolean;
   AUTH_PASSWORD_ENABLED: false;
   AUTH_PHONE_ENABLED: false;
-  AUTH_GOOGLE_ENABLED: false;
-  AUTH_APPLE_ENABLED: false;
+  AUTH_GOOGLE_ENABLED: boolean;
+  AUTH_APPLE_ENABLED: boolean;
+  GOOGLE_WEB_CLIENT_ID?: string;
+  GOOGLE_IOS_CLIENT_ID?: string;
+  GOOGLE_ANDROID_CLIENT_ID?: string;
+  APPLE_IOS_AUDIENCE?: string;
+  JWT_ISSUER?: string;
+  JWT_AUDIENCE?: string;
+  JWT_KEY_ID?: string;
+  JWT_PRIVATE_KEY_BASE64?: string;
   DATABASE_URL?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
@@ -21,7 +29,6 @@ export interface BackendEnvironment {
 
 const AUTH_FLAGS = [
   'AUTH_PASSWORD_ENABLED', 'AUTH_PHONE_ENABLED',
-  'AUTH_GOOGLE_ENABLED', 'AUTH_APPLE_ENABLED',
 ] as const;
 
 export class ConfigurationError extends Error {
@@ -73,6 +80,22 @@ export function validateEnvironment(raw: Record<string, unknown>): BackendEnviro
       else registration[key] = value;
     }
   }
+  const social: Partial<BackendEnvironment> = {};
+  for (const key of ['GOOGLE_WEB_CLIENT_ID', 'GOOGLE_IOS_CLIENT_ID', 'GOOGLE_ANDROID_CLIENT_ID', 'APPLE_IOS_AUDIENCE', 'JWT_ISSUER', 'JWT_AUDIENCE', 'JWT_KEY_ID', 'JWT_PRIVATE_KEY_BASE64'] as const) {
+    const value = raw[key];
+    if (value !== undefined) {
+      if (typeof value !== 'string' || !value.trim() || value.length > 16384) errors.push(key);
+      else social[key] = value;
+    }
+  }
+  const google = booleanSetting(raw.AUTH_GOOGLE_ENABLED); const apple = booleanSetting(raw.AUTH_APPLE_ENABLED);
+  const common = ['DATABASE_URL', 'JWT_ISSUER', 'JWT_AUDIENCE', 'JWT_KEY_ID', 'JWT_PRIVATE_KEY_BASE64', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_VERIFY_SERVICE_SID', 'RESEND_API_KEY', 'REGISTRATION_EMAIL_SENDER', 'REGISTRATION_EMAIL_URL', 'REGISTRATION_ABUSE_KEY_ID', 'REGISTRATION_ABUSE_KEY'];
+  for (const [flag, enabled, specific] of [
+    ['AUTH_GOOGLE_ENABLED', google, ['GOOGLE_WEB_CLIENT_ID', 'GOOGLE_IOS_CLIENT_ID', 'GOOGLE_ANDROID_CLIENT_ID']],
+    ['AUTH_APPLE_ENABLED', apple, ['APPLE_IOS_AUDIENCE']],
+  ] as const) {
+    if (enabled === undefined || (enabled && [...common, ...specific].some((key) => typeof raw[key] !== 'string' || !(raw[key] as string).trim()))) errors.push(flag);
+  }
   if (errors.length) throw new ConfigurationError(errors);
   return {
     NODE_ENV: environment as RuntimeEnvironment,
@@ -80,9 +103,9 @@ export function validateEnvironment(raw: Record<string, unknown>): BackendEnviro
     API_DOCS_ENABLED: docs as boolean,
     AUTH_PASSWORD_ENABLED: false,
     AUTH_PHONE_ENABLED: false,
-    AUTH_GOOGLE_ENABLED: false,
-    AUTH_APPLE_ENABLED: false,
-    ...registration,
+    AUTH_GOOGLE_ENABLED: google ?? false,
+    AUTH_APPLE_ENABLED: apple ?? false,
+    ...registration, ...social,
     ...(typeof databaseUrl === 'string' ? { DATABASE_URL: databaseUrl } : {}),
   };
 }

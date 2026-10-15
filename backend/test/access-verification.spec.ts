@@ -65,7 +65,7 @@ describe('access verification foundation - VAL-007/VAL-011', () => {
     expect(() => new JwtAccessVerifier(jwt, { issuer: '', audience: '', publicKeys: {}, clockToleranceSeconds: 0 }, clock.now)).toThrow();
   });
   it('rechecks database revocation on every request and freezes the principal', async () => {
-    const row: StoredSession = { id: sessionId, userId, expiresAt: new Date(clock.now() + 900_000), revokedAt: null };
+    const row: StoredSession = { id: sessionId, userId, accountStatus: 'ACTIVE', expiresAt: new Date(clock.now() + 900_000), revokedAt: null };
     const find = jest.fn().mockImplementation(async (): Promise<StoredSession> => row);
     const authenticate = new SessionAuthenticator(verifier, { find }, clock.now);
     const value = token();
@@ -75,12 +75,13 @@ describe('access verification foundation - VAL-007/VAL-011', () => {
     await expect(authenticate.authenticate(value)).rejects.toBeInstanceOf(UnauthorizedException);
     expect(find).toHaveBeenCalledTimes(2);
   });
-  it.each(['missing', 'owner', 'session', 'expired', 'invalid date'] as const)('rejects %s database state', async (kind) => {
-    const row: StoredSession = { id: sessionId, userId, expiresAt: new Date(clock.now() + 900_000), revokedAt: null };
+  it.each(['missing', 'owner', 'session', 'expired', 'invalid date', 'onboarding'] as const)('rejects %s database state', async (kind) => {
+    const row: StoredSession = { id: sessionId, userId, accountStatus: 'ACTIVE', expiresAt: new Date(clock.now() + 900_000), revokedAt: null };
     if (kind === 'owner') row.userId = sessionId;
     if (kind === 'session') row.id = userId;
     if (kind === 'expired') row.expiresAt = new Date(clock.now());
     if (kind === 'invalid date') row.expiresAt = new Date(NaN);
+    if (kind === 'onboarding') row.accountStatus = 'ONBOARDING';
     const authenticate = new SessionAuthenticator(verifier, { find: async (): Promise<StoredSession | null> => kind === 'missing' ? null : row }, clock.now);
     await expect(authenticate.authenticate(token())).rejects.toBeInstanceOf(UnauthorizedException);
   });

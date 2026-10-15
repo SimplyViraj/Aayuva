@@ -12,6 +12,7 @@ describe('canonical identity inputs - DEV-012 / VAL-001', () => {
   it('uses maintained numbering metadata for Indian canonical numbers', () => {
     expect(canonicalPhone('98765 43210')).toBe('+919876543210');
     expect(canonicalPhone(' +91 98765 43210 ')).toBe('+919876543210');
+    expect(canonicalPhone('+9118001234567')).toBe('+9118001234567');
   });
   it.each(['+12025550123', '+910000000000', 'call 9876543210', '+919876543210 ext. 123', ''])('rejects foreign/invalid/extracted/extension inputs', (value) => {
     expect(() => canonicalPhone(value)).toThrow(BadRequestException);

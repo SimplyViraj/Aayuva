@@ -8,7 +8,11 @@ export class RegistrationProfileDto {
   @IsString() @Length(1, 100)
   displayName!: string;
 }
-export class BeginRegistrationDto extends RegistrationProfileDto {
+export class BeginRegistrationDto {
+  @ApiPropertyOptional({ minLength: 1, maxLength: 100, description: 'Collected during onboarding when absent from verified provider profile.' })
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value)
+  @IsOptional() @IsString() @Length(1, 100)
+  displayName?: string;
   @ApiPropertyOptional({ description: 'Required for email/password primary identity.', maxLength: 254 })
   @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
   @IsOptional() @IsEmail() @MaxLength(254)
@@ -54,4 +58,6 @@ export class RegistrationStatusDto {
   @ApiProperty() emailVerified!: boolean;
   @ApiProperty() emailRequired!: boolean;
   @ApiProperty({ format: 'date-time' }) expiresAt!: string;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) phoneResendAt!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) emailResendAt!: string | null;
 }

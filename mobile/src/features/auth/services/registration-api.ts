@@ -3,6 +3,7 @@ import { ApiClient } from '../../../lib/api/client';
 export interface RegistrationStatus {
   stage: 'onboarding' | 'completed'; displayName: string | null; phone: string | null; email: string | null;
   phoneVerified: boolean; emailVerified: boolean; emailRequired: boolean; expiresAt: string;
+  phoneResendAt: string | null; emailResendAt: string | null;
 }
 export interface VerificationChallenge { expiresAt: string; resendAt: string }
 export interface RegistrationApi {
@@ -21,7 +22,7 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 function date(value: unknown): string {
-  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) throw new Error('Invalid registration response.');
+  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) throw new Error('Invalid registration response.');
   return value;
 }
 function nullable(value: unknown): string | null {
@@ -31,7 +32,7 @@ function nullable(value: unknown): string | null {
 function status(value: unknown): RegistrationStatus {
   const body = object(value);
   if (!['onboarding', 'completed'].includes(String(body.stage)) || typeof body.phoneVerified !== 'boolean' || typeof body.emailVerified !== 'boolean' || typeof body.emailRequired !== 'boolean') throw new Error('Invalid registration response.');
-  return { stage: body.stage as RegistrationStatus['stage'], displayName: nullable(body.displayName), phone: nullable(body.phone), email: nullable(body.email), phoneVerified: body.phoneVerified, emailVerified: body.emailVerified, emailRequired: body.emailRequired, expiresAt: date(body.expiresAt) };
+  return { stage: body.stage as RegistrationStatus['stage'], displayName: nullable(body.displayName), phone: nullable(body.phone), email: nullable(body.email), phoneVerified: body.phoneVerified, emailVerified: body.emailVerified, emailRequired: body.emailRequired, expiresAt: date(body.expiresAt), phoneResendAt: body.phoneResendAt === null ? null : date(body.phoneResendAt), emailResendAt: body.emailResendAt === null ? null : date(body.emailResendAt) };
 }
 function challenge(value: unknown): VerificationChallenge {
   const body = object(value); return { expiresAt: date(body.expiresAt), resendAt: date(body.resendAt) };

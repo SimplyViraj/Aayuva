@@ -13,7 +13,7 @@ export class SessionAuthenticator implements RequestAuthenticator {
     let session;
     try { session = await this.sessions.find(claims.sessionId); }
     catch { throw new ServiceUnavailableException(); }
-    if (!session || session.id !== claims.sessionId || session.userId !== claims.userId || session.revokedAt || !Number.isFinite(session.expiresAt.getTime()) || session.expiresAt.getTime() <= this.now()) {
+    if (!session || session.id !== claims.sessionId || session.userId !== claims.userId || session.accountStatus !== 'ACTIVE' || session.revokedAt || !Number.isFinite(session.expiresAt.getTime()) || session.expiresAt.getTime() <= this.now()) {
       throw new UnauthorizedException();
     }
     return Object.freeze({ userId: session.userId, sessionId: session.id });

@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "AAyuva Registration Test",
+    "slug": "aayuva-registration-test",
+    "version": "0.1.0",
+    "orientation": "default",
+    "platforms": ["ios", "android"],
+    "plugins": ["expo-secure-store"],
+    "userInterfaceStyle": "light"
+  }
+}

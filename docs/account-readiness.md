@@ -1,6 +1,6 @@
 # DEV-010 account-establishment readiness — approved R2
 
-Prepared 2026-10-13, Asia/Calcutta. The owner explicitly approved R2-A, R2-B and R2-C in response to the three review questions. DEV-010 implementation prerequisites are closed. Values below are approved for the bounded DEL-002 implementation; live providers, production initialization and real platform acceptance retain their separate gates. Historical proposal wording records what was reviewed and does not negate this approval.
+Prepared 2026-10-13, Asia/Calcutta; disposition synchronized 2026-10-14. The owner explicitly approved R2-A, R2-B and R2-C in response to the three review questions. DEV-010 implementation prerequisites are closed. Values below are approved for the bounded DEL-002 implementation; live providers, production initialization and real platform acceptance retain their separate gates.
 
 ## Newly accepted decisions
 
@@ -17,18 +17,18 @@ Existing accepted requirements remain: trimmed display name of 1–100 Unicode c
 | Gate | Current evidence | Remaining before dependent work |
 | --- | --- | --- |
 | IT-003 | Owner explicitly accepted the supplied candidate/exit | Closed; release findings retained |
-| DEC-003 profile/country/age | Owner field, normalization, country and latest no-age-gate decisions recorded | R2 pending-context technical contract below |
+| DEC-003 profile/country/age | Owner field, normalization, country, latest no-age-gate decisions and R2 pending-context contract accepted | Closed for implementation entry |
 | DEC-004 contacts/collisions | Verified canonical uniqueness, no unverified merge, verified replacement; source requires conflict to stop | Implement collision refusal, never automatic account merging. Assisted recovery, recycled-phone exception and linking proof recency remain DEV-026/DEV-030 decisions; no such workflow is introduced here |
 | DEC-005 credentials | Password limits/counting and Argon2id candidate approved | Real credentials and calibration remain DEV-018/DEV-019; DEL-002 uses isolated primary-authentication fixtures only |
-| DEC-006 Twilio | EXC-001 and five failures / 60-second cooldown / five phone requests per rolling hour approved | Approve R2 expiry, resend binding and indeterminate-result recovery; securely configure actual service for integration |
-| DEC-007 abuse controls | Phone limits approved; no permission to invent other numeric limits | Approve R2 registration/email/IP limits, shared enforcement and trusted-proxy boundary |
-| DEC-012 email | Five minutes, 30-second resend, latest-only/single-use/from-issuance accepted | Review R2 technical proof/delivery handling; real sender/domain/secrets must be configured before delivery integration acceptance |
-| DEC-016 privacy/data retention | Minimal profile/contact collection and essential verification messages; safe diagnostics; no demographics | Approve limited R2 metadata retention and messaging policy; release privacy/deletion review remains explicit |
+| DEC-006 Twilio | EXC-001, approved limits and R2-A expiry/binding/recovery accepted | Securely configure actual service for isolated integration; owner deferred configuration |
+| DEC-007 abuse controls | R2-B registration/email/IP limits, shared enforcement and direct socket boundary accepted | Actual proxied topology/key rotation must be reviewed before deployment |
+| DEC-012 email | Five minutes, 30-second resend, latest-only/single-use/from-issuance and R2-C accepted | Real sender/domain/secrets must be configured before delivery integration acceptance |
+| DEC-016 privacy/data retention | R2-B limited metadata retention, essential messages and no demographics accepted | Monitored cleanup and release privacy/deletion review remain explicit |
 | DEC-018 historical continuity | No live Zoho integration or existing application data found in this workspace | Owner must select new empty-database initialization or separately reviewed historical continuity before production initialization. Isolated synthetic migrations do not choose this |
 
-## R2-A: proposed phone-verification policy
+## R2-A: approved phone-verification policy
 
-This section needs owner approval under DEC-006/DEC-007.
+Owner approved under DEC-006/DEC-007.
 
 1. Use a reviewed Twilio Verify service configured for a **10-minute** code validity period. Local challenge acceptance cannot exceed that period; resend does not extend the original local expiry. Twilio documents a default ten-minute validity and reuse of a code during its validity until successful verification. [Twilio validity/resend documentation](https://www.twilio.com/docs/verify/api/rate-limits-and-timeouts).
 2. Keep at most one active registration challenge for a canonical phone and its bound pending context. Another context may not adopt its challenge or provider reference. A resend within that context uses the same purpose/binding and may deliver the same provider code. Changed phone/context invalidates local acceptance of prior evidence; cancel/reconcile the old provider challenge before beginning another bound challenge. Refuse unresolved conflicts rather than granting access.
@@ -38,11 +38,11 @@ This section needs owner approval under DEC-006/DEC-007.
 
 The actual service configuration and cancellation/check behavior must be validated with isolated Twilio evidence in DEV-013/IT-005. This proposal does not call the provider or claim credentials are configured. [Twilio verification API](https://www.twilio.com/docs/verify/api/verification), [verification-check API](https://www.twilio.com/docs/verify/api/verification-check).
 
-## R2-B: proposed registration abuse/data policy
+## R2-B: approved registration abuse/data policy
 
-This section needs owner approval under DEC-007/DEC-016. The values are review candidates, not inferred defaults.
+Owner approved under DEC-007/DEC-016. Values are specific to this registration slice.
 
-| Operation / data | Proposed boundary |
+| Operation / data | Approved boundary |
 | --- | --- |
 | Begin registration | Five requests per source IP per rolling hour |
 | Phone send/resend | Existing phone limits plus five per pending context/hour and 20 per source IP/hour |
@@ -61,9 +61,9 @@ This section needs owner approval under DEC-007/DEC-016. The values are review c
 
 Login, provider exchange, linking, recovery/reset and privileged-operation budgets remain their later tasks; this proposal does not activate those methods. Diagnostic/audit retention beyond this new registration metadata remains the existing release/privacy gate.
 
-## R2-C: technical implementation proposal
+## R2-C: approved technical implementation contract
 
-The owner previously requested technical choices for review before implementation. This section supplies that review for DEV-011–DEV-017; no packages, schema changes or account code are installed/implemented by this proposal.
+The owner requested technical choices for review before implementation and explicitly approved this contract for DEV-011–DEV-017. Current implementation and test evidence are in [account-validation.md](account-validation.md).
 
 - Keep the approved Nest/Prisma/PostgreSQL and Expo structure. Add only account, verified-contact, pending-context and registration-verification responsibilities needed by DEL-002. Migrations must preserve the existing UUIDs/session relationships. Conditional uniqueness and transactions prevent concurrent verified-contact claims from producing duplicate identities. Schema design/SQL review precedes isolated migration application in DEV-011.
 - Pending registration uses a cryptographically random **256-bit opaque capability**, with only a SHA-256 verifier stored, bound to its pending context and 30-minute expiry. It permits approved onboarding operations only; it cannot satisfy normal member authentication or authorization. Generate randomness/hash using Node's maintained `node:crypto` APIs, never custom cryptography. Rotation/cancellation invalidates its previous verifier. No password, provider token or private credential appears in response DTOs or diagnostics.
@@ -77,4 +77,8 @@ Real provider configuration must be supplied via environment secrets/approved de
 
 ## Current execution disposition
 
-DEV-010 is **complete for implementation entry**: IT-003 and R2-A/B/C have attributable owner acceptance. DEV-011–DEV-017 proceed in dependency order. Real provider readiness, production target/history initialization, key rotation/deployment configuration and platform evidence remain explicit activation/integration/release gates; no unavailable live result is claimed. Constitution/specification/plan source documents remain unchanged.
+DEV-010 is **complete for implementation entry**: IT-003 and R2-A/B/C have attributable owner acceptance. DEV-011–DEV-016 and DEV-017 code are implemented. The owner answered “ill add this later” to the secure provider-configuration request; no live provider action was attempted. Real provider readiness, production target/history initialization, key rotation/deployment configuration and platform evidence remain explicit activation/integration/release gates; no unavailable live result is claimed. Constitution/specification/plan source documents remain unchanged.
+
+Update 2026-10-14: the owner added private backend environment settings. Local contracts and read-only Twilio service access pass; Resend domain access returns HTTP 401. Required owned test destinations are not yet present in the saved file. See [provider preflight evidence](account-validation.md#provider-configuration-preflight--2026-10-14). No verification messages or provider setting changes were performed, and IT-005 remains open.
+
+Later “ready” follow-up: both owned test destinations are now saved and format-valid, and the isolated database/provider configuration preflight passes. The Resend error category is `restricted_api_key`, indicating a send-only key cannot list domains; the earlier key-replacement instruction is superseded. Keep the application key restricted and establish sender/delivery readiness via console/live evidence. A local hidden-input rehearsal is prepared; no live verification result or IT-005 exit is claimed.

@@ -6,6 +6,6 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { files: ['**/*.cjs'], languageOptions: { sourceType: 'commonjs', globals: { module: 'readonly', require: 'readonly' } } },
-  { files: ['scripts/**/*.mjs'], languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly' } } },
+  { files: ['scripts/**/*.mjs'], languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly' } } },
   { files: ['**/*.ts'], rules: { '@typescript-eslint/explicit-function-return-type': 'error' } },
 );

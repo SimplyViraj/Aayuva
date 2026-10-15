@@ -75,6 +75,16 @@ describe('account API - DEV-015/DEV-016, isolated primary/provider fixtures', ()
     await request(app.getHttpServer()).patch('/registration/profile').set('Authorization', 'Bearer ' + token).send({ displayName: '😀'.repeat(100) }).expect(204);
     await request(app.getHttpServer()).patch('/registration/profile').set('Authorization', 'Bearer ' + token).send({ displayName: '😀'.repeat(101) }).expect(400);
   });
+  it('starts onboarding when provider profile name is absent and still requires it for completion', async () => {
+    subject = randomUUID();
+    const response = await request(app.getHttpServer()).post('/registration').set('X-Fixture-Primary', 'fixture').send({}).expect(200);
+    const token = (response.body as { token: string }).token;
+    const pending = await db.pendingRegistration.findUniqueOrThrow({ where: { capabilityHash: capabilityHash('pending_registration', token) }, select: { id: true } });
+    ids.add(pending.id);
+    const status = await request(app.getHttpServer()).get('/registration').set('Authorization', 'Bearer ' + token).expect(200);
+    expect(status.body).toMatchObject({ displayName: null, phoneResendAt: null, emailResendAt: null });
+    await request(app.getHttpServer()).post('/registration/complete').set('Authorization', 'Bearer ' + token).expect(409);
+  });
   it('requires complete proofs, creates a MEMBER once and issues no session', async () => {
     const token = await begin(); const headers = { Authorization: 'Bearer ' + token };
     await request(app.getHttpServer()).post('/registration/complete').set(headers).expect(409);
@@ -95,14 +105,16 @@ describe('account API - DEV-015/DEV-016, isolated primary/provider fixtures', ()
     await request(app.getHttpServer()).post('/registration/complete').set('Authorization', 'Bearer ' + token).expect(401);
   });
   it('documents only real DTOs/operations without internal models or credentials', () => {
-    const document = SwaggerModule.createDocument(app, new DocumentBuilder().addBearerAuth({ type: 'http', scheme: 'bearer' }, 'onboarding').build());
+    const document = SwaggerModule.createDocument(app, new DocumentBuilder().addBearerAuth({ type: 'http', scheme: 'bearer' }, 'onboarding').addBearerAuth({ type: 'http', scheme: 'bearer' }, 'primary_identity').build());
     expect(document.paths['/registration/phone/check']?.post?.responses['200']).toBeDefined();
     expect(Object.keys(document.paths)).toHaveLength(8);
+    expect(document.paths['/registration']?.post?.security).toEqual([{ primary_identity: [] }]);
+    expect(document.paths['/registration']?.get?.security).toEqual([{ onboarding: [] }]);
     expect(JSON.stringify(document)).not.toContain('capabilityHash'); expect(JSON.stringify(document)).not.toContain('providerSid');
   });
   it('removes old registration metadata without deleting member identities', async () => {
-    // Fixture is >7 days old, so its own records are the only eligible rows in
-    // this test database. Maintenance is never run against a production target.
+    // Scope the rehearsal to this suite's UUID/key ID. Never assume this test
+    // database has no other fixtures or run maintenance on a production target.
     const id = randomUUID(); ids.add(id); const createdAt = new Date(Date.now() - 8 * 86_400_000);
     await db.pendingRegistration.create({ data: { id, capabilityHash: 'f'.repeat(64), primaryMethod: 'GOOGLE', primarySubject: id, createdAt, expiresAt: new Date(createdAt.getTime() + 1_800_000) } });
     await app.get(RegistrationMaintenance).purge({ pendingIds: [id], rateKeyIds: [keyId] });
